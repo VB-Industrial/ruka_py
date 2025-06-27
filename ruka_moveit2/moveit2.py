@@ -42,7 +42,7 @@ from shape_msgs.msg import Mesh, MeshTriangle, SolidPrimitive
 from std_msgs.msg import Header, String
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
-from pymoveit2.utils import enum_to_str
+from ruka_moveit2.utils import enum_to_str
 
 
 class MoveIt2State(Enum):

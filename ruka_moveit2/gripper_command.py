@@ -14,7 +14,7 @@ from rclpy.qos import (
 )
 from sensor_msgs.msg import JointState
 
-from pymoveit2.utils import enum_to_str
+from ruka_moveit2.utils import enum_to_str
 
 
 class GripperCommand:
