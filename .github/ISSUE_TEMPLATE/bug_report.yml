@@ -1,0 +1,62 @@
+name: Bug report
+description: Report reproducible incorrect behavior in ruka_py
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Do not report security vulnerabilities here. Follow SECURITY.md
+        instead. Stop physical hardware before collecting diagnostics.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: ruka_py version or Git commit
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Python, ROS 2, MoveIt 2, and pymoveit2 versions.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target
+    attributes:
+      label: Execution target
+      options:
+        - Simulation
+        - Physical robot
+        - Automated tests only
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest safe script or test that shows the issue.
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Remove credentials, tokens, private paths, and personal data.
+      render: shell
