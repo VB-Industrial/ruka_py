@@ -1,6 +1,6 @@
 # ruka_py
 
-`ruka_py` is a high-level Python interface for controlling the six-axis RUKA
+`ruka_py` is a high-level Python interface for controlling a RUKA
 manipulator with ROS 2, MoveIt 2, and `pymoveit2`.
 
 The library owns the repetitive infrastructure—ROS initialization, the node,
@@ -18,6 +18,7 @@ programs contain only motion commands and trajectory data.
 - CSV trajectory loading;
 - Euler-angle to quaternion conversion;
 - box, sphere, cylinder, and cone collision objects;
+- explicit robot configuration without hard-coded joint or link names;
 - deterministic ROS cleanup through a context manager;
 - type information for IDEs and static analyzers.
 
@@ -63,28 +64,38 @@ After the repository has a tagged release, it can also be installed directly:
 
 ```bash
 python3 -m pip install \
-  "ruka_py @ git+https://github.com/VB-Industrial/ruka_py.git@v0.1.0"
+  "ruka_py @ git+https://github.com/VB-Industrial/ruka_py.git@v0.2.0"
 ```
 
 ## Quick start
 
 ```python
-from ruka_py import RukaRobot, euler_deg_to_quaternion
+from ruka_py import RobotConfig, RukaRobot, euler_deg_to_quaternion
 
+config = RobotConfig(
+    joint_names=("axis_1", "axis_2", "axis_3", "axis_4", "axis_5", "axis_6"),
+    base_link_name="base_link",
+    end_effector_name="tool_link",
+    group_name="arm",
+)
 
-with RukaRobot(max_velocity=0.5, max_acceleration=0.3) as robot:
+with RukaRobot(config, max_velocity=0.5, max_acceleration=0.3) as robot:
     robot.move_to_angles([0.0, -1.57, 1.57, 0.0, 0.0, 0.0])
 
     orientation = euler_deg_to_quaternion(0, 0, 0)
     robot.move_to_pose([0.256, 0.0, 0.5628], orientation)
 ```
 
-Always use `RukaRobot` as a context manager. This ensures that the executor,
-node, and ROS context are released if the program finishes or raises an error.
+`RobotConfig` is deliberately required: joint names and their controller order
+vary between manipulators and therefore must never be guessed by the library.
+Get these names from your URDF/SRDF and controller configuration. Always use
+`RukaRobot` as a context manager so the executor, node, and ROS context are
+released if the program finishes or raises an error.
 
 ## Examples
 
-The [`examples`](examples) directory contains runnable scenarios:
+Edit [`examples/robot_config.py`](examples/robot_config.py) once for your robot.
+The [`examples`](examples) directory then contains runnable scenarios:
 
 - [`move_by_angles.py`](examples/move_by_angles.py);
 - [`move_to_pose.py`](examples/move_to_pose.py);
@@ -100,7 +111,11 @@ python3 examples/move_by_angles.py
 The collision-object editor is installed as a command-line application:
 
 ```bash
-ruka-collisions
+ruka-collisions \
+  --joint-names axis_1 axis_2 axis_3 axis_4 axis_5 axis_6 \
+  --base-link base_link \
+  --end-effector tool_link \
+  --group arm
 ```
 
 ## Documentation

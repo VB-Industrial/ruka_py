@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from robot_config import ROBOT_CONFIG
+
 from ruka_py import RukaRobot, read_csv
 
 csv_file = Path.home() / "Desktop" / "data_csv_ruka_fk" / "UDRIVEUP.csv"
@@ -24,6 +26,6 @@ def joint_angles(row):
 first_joint_goal = joint_angles(angles.iloc[0])
 trajectory = [(row.iloc[0], joint_angles(row)) for _, row in angles.iterrows()]
 
-with RukaRobot() as robot:
+with RukaRobot(ROBOT_CONFIG) as robot:
     robot.move_to_angles(first_joint_goal)
     robot.execute_angle_trajectory(trajectory)

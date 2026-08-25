@@ -6,9 +6,26 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Added
+## [0.2.0] - 2026-08-25
 
-- GitHub-ready project metadata, documentation, CI, and contribution guidance.
+### Changed
+
+- Removed all built-in joint, link, and planning-group names.
+- Added the required `RobotConfig` object so every manipulator declares the
+  exact joint order expected by its controller.
+- Updated the interactive collision editor to require robot names as command
+  line arguments.
+- Centralized example-specific names in `examples/robot_config.py`.
+
+### Fixed
+
+- Prevented silent use of an incorrect joint order on manipulators whose URDF
+  names differ from the original RUKA setup.
+
+### Migration
+
+Replace `RukaRobot()` with `RukaRobot(RobotConfig(...))`. See the README and
+Russian user guide for a complete example.
 
 ## [0.1.0] - 2026-08-04
 
@@ -21,3 +38,4 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - CSV loading and Euler-to-quaternion conversion.
 - Interactive `ruka-collisions` command.
 - User examples and automated tests.
+- GitHub-ready project metadata, documentation, CI, and contribution guidance.

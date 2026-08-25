@@ -1,5 +1,8 @@
 """Interactive collision-object editor."""
 
+import argparse
+
+from .config import RobotConfig
 from .robot import RukaRobot
 
 SHAPES = ("box", "sphere", "cylinder", "cone")
@@ -16,10 +19,34 @@ def _read_numbers(prompt: str, count: int) -> list[float]:
         print(f"Введите {count} чисел через пробел")
 
 
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Interactive MoveIt collision-object editor for RUKA"
+    )
+    parser.add_argument(
+        "--joint-names",
+        nargs="+",
+        required=True,
+        help="ordered joint names expected by the arm controller",
+    )
+    parser.add_argument("--base-link", required=True)
+    parser.add_argument("--end-effector", required=True)
+    parser.add_argument("--group", required=True, help="MoveIt planning group")
+    return parser
+
+
 def main() -> None:
     """Run the interactive collision-object editor."""
 
-    with RukaRobot() as robot:
+    args = _parser().parse_args()
+    config = RobotConfig(
+        joint_names=args.joint_names,
+        base_link_name=args.base_link,
+        end_effector_name=args.end_effector,
+        group_name=args.group,
+    )
+
+    with RukaRobot(config) as robot:
         while True:
             action = input("Действие (add, remove, move, end): ").strip().lower()
             if action == "end":

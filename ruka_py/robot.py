@@ -7,14 +7,7 @@ import time
 from collections.abc import Iterable, Sequence
 from threading import Thread
 
-DEFAULT_JOINT_NAMES = (
-    "base_link__link_01",
-    "link_01__link_02",
-    "link_02__link_03",
-    "link_03__link_04",
-    "link_04__link_05",
-    "link_05__link_06",
-)
+from .config import RobotConfig
 
 
 def _numbers(values: Sequence[float], length: int, name: str) -> list[float]:
@@ -76,20 +69,19 @@ def _duration(seconds: float):
 
 
 class RukaRobot:
-    """A high-level controller for the six-axis RUKA arm.
+    """A high-level controller for a MoveIt-configured RUKA arm.
 
     Creating the object starts ROS, the MoveIt client, and its background
-    executor. Using it as a context manager guarantees correct cleanup.
+    executor. Robot-specific names are supplied explicitly through
+    :class:`RobotConfig`. Using the controller as a context manager guarantees
+    correct cleanup.
     """
 
     def __init__(
         self,
+        config: RobotConfig,
         *,
         node_name: str = "ruka_py",
-        joint_names: Sequence[str] = DEFAULT_JOINT_NAMES,
-        base_link_name: str = "base_link",
-        end_effector_name: str = "link_06",
-        group_name: str = "ruka_arm_controller",
         max_velocity: float = 0.9,
         max_acceleration: float = 0.7,
         startup_delay: float = 1.0,
@@ -100,9 +92,10 @@ class RukaRobot:
         from rclpy.executors import MultiThreadedExecutor
         from rclpy.node import Node
 
-        self.joint_names = tuple(joint_names)
-        if not self.joint_names:
-            raise ValueError("joint_names cannot be empty")
+        if not isinstance(config, RobotConfig):
+            raise TypeError("config must be a RobotConfig instance")
+        self.config = config
+        self.joint_names = config.joint_names
         if not node_name or node_name != node_name.strip():
             raise ValueError(
                 "node_name must be a non-empty string without outer spaces"
@@ -130,9 +123,9 @@ class RukaRobot:
             self._moveit2 = MoveIt2(
                 node=self._node,
                 joint_names=list(self.joint_names),
-                base_link_name=base_link_name,
-                end_effector_name=end_effector_name,
-                group_name=group_name,
+                base_link_name=config.base_link_name,
+                end_effector_name=config.end_effector_name,
+                group_name=config.group_name,
                 callback_group=callback_group,
             )
             self._moveit2.max_velocity = max_velocity

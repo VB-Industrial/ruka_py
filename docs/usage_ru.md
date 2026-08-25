@@ -1,6 +1,6 @@
 # Руководство пользователя `ruka_py`
 
-Библиотека `ruka_py` предназначена для управления шестикоординатным
+Библиотека `ruka_py` предназначена для управления
 манипулятором RUKA через ROS 2, MoveIt 2 и `pymoveit2`.
 
 Пользователю не нужно самостоятельно:
@@ -11,8 +11,8 @@
 - создавать `MoveIt2`;
 - формировать сообщения `JointTrajectory` и `JointTrajectoryPoint`.
 
-В пользовательском скрипте остаются только координаты, углы, время и команды
-движения.
+В пользовательском скрипте остаются конфигурация конкретного манипулятора,
+координаты, углы, время и команды движения.
 
 ## 1. Подготовка окружения
 
@@ -60,7 +60,7 @@ python3 -m pip install -e ".[dev]"
 
 ```bash
 python3 -m pip install \
-  "ruka_py @ git+https://github.com/VB-Industrial/ruka_py.git@v0.1.0"
+  "ruka_py @ git+https://github.com/VB-Industrial/ruka_py.git@v0.2.0"
 ```
 
 Проверка установки:
@@ -71,15 +71,37 @@ python3 -c "import ruka_py; print(ruka_py.__version__)"
 
 ## 3. Минимальный пользовательский скрипт
 
-Создайте Python-файл, например `my_motion.py`:
+Имена суставов у разных манипуляторов различаются. Поэтому библиотека не
+содержит имён по умолчанию и не пытается угадывать их по `/joint_states`, где
+могут одновременно присутствовать захват, колёса и дополнительные оси.
+
+Создайте Python-файл, например `my_motion.py`, и явно задайте имена из URDF,
+SRDF и конфигурации контроллера:
 
 ```python
-from ruka_py import RukaRobot
+from ruka_py import RobotConfig, RukaRobot
 
+config = RobotConfig(
+    joint_names=(
+        "shoulder_joint",
+        "upper_arm_joint",
+        "elbow_joint",
+        "wrist_1_joint",
+        "wrist_2_joint",
+        "wrist_3_joint",
+    ),
+    base_link_name="base_link",
+    end_effector_name="tool_link",
+    group_name="arm",
+)
 
-with RukaRobot() as robot:
+with RukaRobot(config) as robot:
     robot.move_to_angles([0.0, -1.57, 1.57, 0.0, 0.0, 0.0])
 ```
+
+Порядок `joint_names` должен точно совпадать с порядком, ожидаемым контроллером.
+Количество суставов не зафиксировано библиотекой. Все последующие фрагменты
+инструкции предполагают, что переменная `config` создана таким способом.
 
 Запустите его в терминале с подключённым ROS-окружением:
 
@@ -87,32 +109,26 @@ with RukaRobot() as robot:
 python3 my_motion.py
 ```
 
-Конструкция `with RukaRobot() as robot` обязательна для рекомендуемого способа
+Конструкция `with RukaRobot(config) as robot` обязательна для рекомендуемого способа
 работы. При выходе из блока библиотека корректно остановит executor и освободит
 ROS-ресурсы, даже если во время выполнения возникнет ошибка.
 
 ## 4. Движение по углам суставов
 
-Углы задаются в радианах. Для стандартной конфигурации необходимо передать
-ровно шесть значений:
+Углы задаются в радианах. Число значений должно совпадать с числом элементов в
+`config.joint_names`:
 
 ```python
 from ruka_py import RukaRobot
 
 
-with RukaRobot() as robot:
+with RukaRobot(config) as robot:
     joint_goal = [0.0, -1.57, 1.57, 0.0, 0.0, 0.0]
     robot.move_to_angles(joint_goal)
 ```
 
-Порядок суставов по умолчанию:
-
-1. `base_link__link_01`;
-2. `link_01__link_02`;
-3. `link_02__link_03`;
-4. `link_03__link_04`;
-5. `link_04__link_05`;
-6. `link_05__link_06`.
+Библиотека передаёт углы контроллеру в том же порядке, в котором суставы
+перечислены в `config.joint_names`.
 
 По умолчанию метод ждёт завершения движения. Для асинхронной отправки команды
 можно указать `wait=False`:
@@ -131,7 +147,7 @@ robot.move_to_angles(joint_goal, wait=False)
 from ruka_py import RukaRobot
 
 
-with RukaRobot() as robot:
+with RukaRobot(config) as robot:
     position = [0.256, 0.0, 0.5628]
     orientation = [0.0, 0.0, 0.0, 1.0]
     robot.move_to_pose(position, orientation)
@@ -146,7 +162,7 @@ from ruka_py import RukaRobot, euler_deg_to_quaternion
 
 orientation = euler_deg_to_quaternion(0, 0, 90)
 
-with RukaRobot() as robot:
+with RukaRobot(config) as robot:
     robot.move_to_pose([0.256, 0.0, 0.5628], orientation)
 ```
 
@@ -155,7 +171,7 @@ with RukaRobot() as robot:
 Каждая точка состоит из двух элементов:
 
 ```text
-(время_от_начала_в_секундах, [шесть углов])
+(время_от_начала_в_секундах, [углы в порядке config.joint_names])
 ```
 
 Пример:
@@ -170,7 +186,7 @@ trajectory = [
     (5.5, [0.4, -1.20, 1.10, 0.0, 0.2, 0.0]),
 ]
 
-with RukaRobot() as robot:
+with RukaRobot(config) as robot:
     # Сначала доезжаем до первой точки.
     robot.move_to_angles(trajectory[0][1])
 
@@ -204,7 +220,7 @@ trajectory = [
      [0.70172, 0.010648, 0.71223, 0.014095]),
 ]
 
-with RukaRobot() as robot:
+with RukaRobot(config) as robot:
     _, first_position, first_orientation = trajectory[0]
     robot.move_to_pose(first_position, first_orientation)
     robot.execute_pose_trajectory(trajectory)
@@ -227,7 +243,7 @@ print(data.shape)
 print(data.head())
 ```
 
-Для траектории из исходного проекта ожидается семь столбцов:
+В этом конкретном примере для шестикоординатного робота ожидается семь столбцов:
 
 ```text
 time, joint_1, joint_2, joint_3, joint_4, joint_5, joint_6
@@ -264,7 +280,7 @@ trajectory = [
     for _, row in data.iterrows()
 ]
 
-with RukaRobot() as robot:
+with RukaRobot(config) as robot:
     robot.move_to_angles(trajectory[0][1])
     robot.execute_angle_trajectory(trajectory)
 ```
@@ -282,7 +298,7 @@ with RukaRobot() as robot:
 Их можно задать при создании контроллера:
 
 ```python
-with RukaRobot(max_velocity=0.5, max_acceleration=0.3) as robot:
+with RukaRobot(config, max_velocity=0.5, max_acceleration=0.3) as robot:
     robot.move_to_angles([0.0, -1.57, 1.57, 0.0, 0.0, 0.0])
 ```
 
@@ -301,7 +317,7 @@ robot.max_acceleration = 0.2
 ### Добавление параллелепипеда
 
 ```python
-with RukaRobot() as robot:
+with RukaRobot(config) as robot:
     robot.add_box(
         "box_1",
         position=[0.5, 0.0, 0.5],
@@ -353,30 +369,41 @@ ID каждого объекта должен быть уникальным.
 После установки библиотеки также доступен интерактивный редактор объектов:
 
 ```bash
-ruka-collisions
+ruka-collisions \
+  --joint-names shoulder_joint upper_arm_joint elbow_joint \
+                wrist_1_joint wrist_2_joint wrist_3_joint \
+  --base-link base_link \
+  --end-effector tool_link \
+  --group arm
 ```
 
-## 11. Нестандартная конфигурация робота
+## 11. Конфигурация другого робота
 
-Все основные имена можно переопределить при создании контроллера:
+Для другого робота создайте другой объект `RobotConfig`; внутренний код
+библиотеки изменять не нужно:
 
 ```python
-with RukaRobot(
-    node_name="my_ruka_program",
-    joint_names=["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"],
+from ruka_py import RobotConfig, RukaRobot
+
+other_config = RobotConfig(
+    joint_names=("axis_a", "axis_b", "axis_c", "axis_d"),
     base_link_name="base_link",
     end_effector_name="tool_link",
     group_name="arm",
-) as robot:
-    robot.move_to_angles([0, 0, 0, 0, 0, 0])
+)
+
+with RukaRobot(other_config, node_name="my_ruka_program") as robot:
+    robot.move_to_angles([0, 0, 0, 0])
 ```
 
-Названия должны точно совпадать с URDF, SRDF и конфигурацией MoveIt.
+Названия должны точно совпадать с URDF, SRDF и конфигурацией MoveIt, а порядок
+суставов — с конфигурацией контроллера.
 
 ## 12. Готовые примеры
 
 Примеры находятся в папке `~/ruka_py/examples`:
 
+- `robot_config.py` — имена суставов и звеньев конкретного робота;
 - `move_by_angles.py` — движение по углам;
 - `move_to_pose.py` — движение по позиции и ориентации;
 - `trajectory_from_csv.py` — траектория из CSV;
@@ -389,8 +416,9 @@ cd ~/ruka_py
 python3 examples/move_by_angles.py
 ```
 
-Перед запуском проверьте значения в примере и убедитесь, что они безопасны для
-реального робота и окружающих объектов.
+Перед первым запуском отредактируйте `examples/robot_config.py`. Затем проверьте
+значения в примере и убедитесь, что они безопасны для реального робота и
+окружающих объектов.
 
 ## 13. Типичные ошибки
 
@@ -411,10 +439,10 @@ source ~/ws_ruka/install/setup.bash
 python3 -m pip install /путь/к/ruka_py
 ```
 
-### `angles must contain exactly 6 values`
+### `angles must contain exactly N values`
 
-В точке указано неверное количество углов. Для стандартной конфигурации нужно
-ровно шесть чисел.
+В точке указано неверное количество углов. Требуется ровно столько чисел,
+сколько суставов находится в `config.joint_names`.
 
 ### `Trajectory times must be strictly increasing`
 
