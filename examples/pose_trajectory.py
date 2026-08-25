@@ -1,5 +1,7 @@
 """Движение по траектории позиций и ориентаций."""
 
+from robot_config import ROBOT_CONFIG
+
 from ruka_py import RukaRobot
 
 trajectory = [
@@ -20,7 +22,7 @@ trajectory = [
     ),
 ]
 
-with RukaRobot() as robot:
+with RukaRobot(ROBOT_CONFIG) as robot:
     _, first_position, first_orientation = trajectory[0]
     robot.move_to_pose(first_position, first_orientation)
     robot.execute_pose_trajectory(trajectory)

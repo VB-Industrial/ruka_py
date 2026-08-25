@@ -3,14 +3,15 @@ import unittest
 import numpy as np
 from sensor_msgs.msg import JointState
 
-from ruka_py import RukaRobot, euler_deg_to_quaternion
+from ruka_py import RobotConfig, RukaRobot, euler_deg_to_quaternion
 from ruka_py.robot import (
-    DEFAULT_JOINT_NAMES,
     _duration,
     _numbers,
     _quaternion,
     _scaling_factor,
 )
+
+TEST_JOINT_NAMES = ("axis_a", "axis_b", "axis_c", "axis_d", "axis_e", "axis_f")
 
 
 class FakeMoveIt:
@@ -22,7 +23,7 @@ class FakeMoveIt:
 
     def compute_ik(self, position, orientation):
         state = JointState()
-        state.name = list(reversed(DEFAULT_JOINT_NAMES))
+        state.name = list(reversed(TEST_JOINT_NAMES))
         state.position = [6.0, 5.0, 4.0, 3.0, 2.0, 1.0]
         return state
 
@@ -30,7 +31,7 @@ class FakeMoveIt:
 class UtilsTest(unittest.TestCase):
     def make_robot(self):
         robot = object.__new__(RukaRobot)
-        robot.joint_names = DEFAULT_JOINT_NAMES
+        robot.joint_names = TEST_JOINT_NAMES
         robot._moveit2 = FakeMoveIt()
         robot._closed = False
         return robot
@@ -71,13 +72,41 @@ class UtilsTest(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 _scaling_factor(value, "max_velocity")
 
+    def test_robot_config_keeps_controller_joint_order(self):
+        config = RobotConfig(
+            joint_names=["shoulder", "elbow", "wrist"],
+            base_link_name="base",
+            end_effector_name="tool",
+            group_name="arm",
+        )
+
+        self.assertEqual(config.joint_names, ("shoulder", "elbow", "wrist"))
+
+    def test_robot_config_rejects_duplicate_joint_names(self):
+        with self.assertRaisesRegex(ValueError, "unique"):
+            RobotConfig(
+                joint_names=["joint", "joint"],
+                base_link_name="base",
+                end_effector_name="tool",
+                group_name="arm",
+            )
+
+    def test_robot_config_rejects_string_as_joint_sequence(self):
+        with self.assertRaisesRegex(ValueError, "sequence"):
+            RobotConfig(
+                joint_names="joint",
+                base_link_name="base",
+                end_effector_name="tool",
+                group_name="arm",
+            )
+
     def test_angle_trajectory_is_built_by_library(self):
         robot = self.make_robot()
 
         robot.execute_angle_trajectory([(0.5, [1, 2, 3, 4, 5, 6])], wait=False)
 
         trajectory = robot._moveit2.executed
-        self.assertEqual(trajectory.joint_names, list(DEFAULT_JOINT_NAMES))
+        self.assertEqual(trajectory.joint_names, list(TEST_JOINT_NAMES))
         self.assertEqual(list(trajectory.points[0].positions), [1, 2, 3, 4, 5, 6])
         self.assertEqual(trajectory.points[0].time_from_start.nanosec, 500_000_000)
 
